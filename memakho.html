@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="en" class="antialiased">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Memakho — Keep One Second</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'memakho-dark': '#0a0a09',
+                        'memakho-green': '#dcf5cb',
+                        'memakho-cream': '#f8f6f1',
+                        'memakho-gray': '#a0a09f',
+                    },
+                    fontFamily: {
+                        serif: ['"Cormorant Garamond"', 'serif'],
+                        sans: ['"Inter"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Core Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.19/bundled/lenis.min.js"></script>
+
+    <!-- Three.js Post-Processing (Loaded via CDN for single-file structure) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <style>
+        :root {
+            --m-dark: #0a0a09;
+            --m-green: #dcf5cb;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: var(--m-dark);
+            color: #ffffff;
+            overscroll-behavior: none;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body.menu-open {
+            overflow: hidden;
+        }
+
+        /* The canvas sits at the absolute back */
+        #webgl-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+        .site-footer {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 3rem 2rem 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(10, 10, 9, 0.72);
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .site-footer a {
+            color: inherit;
+            text-decoration: none;
+            transition: color 0.3s ease, opacity 0.3s ease;
+        }
+
+        .site-footer a:hover,
+        .site-footer a:focus-visible {
+            color: var(--m-green);
+            opacity: 1;
+        }
+
+        .site-footer__inner {
+            width: min(100%, 72rem);
+            margin: 0 auto;
+        }
+
+        .site-footer__top,
+        .site-footer__bottom {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+        }
+
+        .site-footer__top {
+            flex-wrap: wrap;
+            padding-bottom: 2rem;
+        }
+
+        .site-footer__bottom {
+            flex-wrap: wrap;
+            padding-top: 1.25rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 0.625rem;
+            letter-spacing: 0.12em;
+            line-height: 1.6;
+            text-transform: uppercase;
+        }
+
+        .site-footer__group {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1.5rem;
+            font-size: 0.625rem;
+            letter-spacing: 0.2em;
+            line-height: 1.6;
+            text-transform: uppercase;
+        }
+
+        .site-footer__legal {
+            color: rgba(255, 255, 255, 0.22);
+            letter-spacing: 0.12em;
+        }
+
+        .site-footer__social {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        @media (max-width: 767px) {
+            .site-footer {
+                padding: 2.5rem 1.5rem 1.5rem;
+            }
+
+            .site-footer__top,
+            .site-footer__bottom {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .site-footer__top {
+                gap: 1.75rem;
+            }
+
+            .site-footer__group {
+                gap: 0.9rem 1.25rem;
+            }
+        }
+        /* Cinematic Film Grain Overlay */
+        #grain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.04;
+            background: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+            mix-blend-mode: overlay;
+        }
+
+        /* Invisible scroll proxy to drive GSAP */
+        #scroll-proxy {
+            position: relative;
+            width: 100%;
+            height: 600vh; /* Determines the total length of the "film" */
+            z-index: 1;
+        }
+
+        /* Fixed UI Layer for typography & UI */
+        #ui-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            pointer-events: none; /* Let clicks pass through to scroll/buttons */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .site-mobile-nav {
+            position: fixed;
+            inset: 0;
+            z-index: 120;
+            background: rgba(10, 10, 9, 0.96);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity 0.38s ease, visibility 0.38s ease;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+        }
+
+        .site-mobile-nav.is-open {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        .site-mobile-nav__panel {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 1.5rem 1.25rem 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(10, 10, 9, 0.92);
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.42s ease, transform 0.42s ease;
+        }
+
+        .site-mobile-nav.is-open .site-mobile-nav__panel {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        @media (min-width: 768px) {
+            .site-mobile-nav {
+                display: none;
+            }
+        }
+
+        .site-mobile-nav__top,
+        .site-mobile-nav__meta,
+        .site-mobile-nav__secondary,
+        .site-mobile-nav__legal {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .site-mobile-nav__top {
+            align-items: center;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .site-mobile-nav__brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .site-mobile-nav__brand-mark {
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .site-mobile-nav__brand-mark::before {
+            content: "";
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 9999px;
+            background: #dcf5cb;
+            box-shadow: 0 0 10px rgba(220, 245, 203, 0.75);
+        }
+
+        .site-mobile-nav__brand-text {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.65rem;
+            letter-spacing: 0.3em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .site-mobile-nav__close {
+            width: 2.5rem;
+            height: 2.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 9999px;
+            transition: color 0.25s ease, border-color 0.25s ease;
+        }
+
+        .site-mobile-nav__close:hover,
+        .site-mobile-nav__close:focus-visible {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        .site-mobile-nav__menu {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            padding: 2rem 0 1.5rem;
+        }
+
+        .mobile-nav-item,
+        .site-mobile-nav__secondary a,
+        .site-mobile-nav__legal a,
+        .site-mobile-nav__meta {
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.22em;
+            text-decoration: none;
+            transition: color 0.25s ease, opacity 0.25s ease, transform 0.25s ease;
+        }
+
+        .mobile-nav-item {
+            display: block;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: rgba(255, 255, 255, 0.5);
+            opacity: 0;
+            transform: translateY(18px);
+            transition: opacity 0.45s ease, transform 0.45s ease, color 0.25s ease;
+        }
+
+        .mobile-nav-item--main {
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .site-mobile-nav.is-open .mobile-nav-item {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .site-mobile-nav.is-open .mobile-nav-item:nth-child(1) { transition-delay: 0.08s; }
+        .site-mobile-nav.is-open .mobile-nav-item:nth-child(2) { transition-delay: 0.12s; }
+        .site-mobile-nav.is-open .mobile-nav-item:nth-child(3) { transition-delay: 0.16s; }
+
+        .mobile-nav-item:hover,
+        .mobile-nav-item:focus-visible,
+        .site-mobile-nav__secondary a:hover,
+        .site-mobile-nav__secondary a:focus-visible,
+        .site-mobile-nav__legal a:hover,
+        .site-mobile-nav__legal a:focus-visible {
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .site-mobile-nav__footer {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .site-mobile-nav__secondary,
+        .site-mobile-nav__legal {
+            flex-wrap: wrap;
+            gap: 0.75rem 1.25rem;
+            font-size: 0.6rem;
+            line-height: 1.6;
+        }
+
+        .site-mobile-nav__secondary a,
+        .site-mobile-nav__legal a,
+        .site-mobile-nav__meta {
+            color: rgba(255, 255, 255, 0.42);
+        }
+
+        .site-mobile-nav__meta {
+            font-size: 0.52rem;
+            line-height: 1.7;
+            letter-spacing: 0.16em;
+            color: rgba(255, 255, 255, 0.26);
+        }
+
+        .menu-toggle {
+            position: relative;
+            width: 2.25rem;
+            height: 2.25rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: rgba(255, 255, 255, 0.7);
+            transition: color 0.25s ease;
+        }
+
+        .menu-toggle:hover,
+        .menu-toggle:focus-visible {
+            color: rgba(255, 255, 255, 1);
+        }
+
+        .menu-toggle svg {
+            width: 1.5rem;
+            height: 1.5rem;
+            overflow: visible;
+        }
+
+        .menu-toggle line {
+            stroke: currentColor;
+            stroke-width: 1.5;
+            stroke-linecap: round;
+            transition: transform 0.35s ease, opacity 0.35s ease;
+            transform-origin: center;
+        }
+
+        .menu-toggle .line-1,
+        .menu-toggle .line-2,
+        .menu-toggle .line-3 {
+            transform-box: fill-box;
+        }
+
+        .menu-toggle .line-1,
+        .menu-toggle .line-3 {
+            transform-origin: 50% 50%;
+        }
+
+        .menu-toggle[aria-expanded="true"] .line-1 {
+            transform: translateY(6px) rotate(45deg);
+        }
+
+        .menu-toggle[aria-expanded="true"] .line-2 {
+            opacity: 0;
+            transform: scaleX(0.25);
+        }
+
+        .menu-toggle[aria-expanded="true"] .line-3 {
+            transform: translateY(-6px) rotate(-45deg);
+        }
+
+        /* Make specific UI elements clickable */
+        header, .clickable, .btn-primary {
+            pointer-events: auto;
+        }
+
+        .cinematic-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            text-align: center;
+            opacity: 0;
+            visibility: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 0 2rem;
+        }
+
+        .word-wrap {
+            display: inline-block;
+            overflow: hidden;
+            padding-bottom: 0.2em; /* Prevent clipping descenders */
+        }
+
+        .word {
+            display: inline-block;
+            transform: translateY(110%);
+            opacity: 0;
+            filter: blur(8px);
+            will-change: transform, opacity, filter;
+        }
+
+        .sub-text {
+            opacity: 0;
+            filter: blur(4px);
+            transform: translateY(20px);
+        }
+
+        /* Tactile Button */
+        .btn-primary {
+            background-color: var(--m-green);
+            color: var(--m-dark);
+            padding: 1rem 2.5rem;
+            border-radius: 9999px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.4), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.02) translateY(-2px);
+            box-shadow: 0 15px 30px rgba(220, 245, 203, 0.15), 0 0 40px rgba(220, 245, 203, 0.1);
+        }
+        
+        .btn-primary:hover::before { opacity: 1; }
+        
+        .btn-primary:active {
+            transform: scale(0.98) translateY(1px);
+            box-shadow: 0 5px 15px rgba(220, 245, 203, 0.1);
+        }
+
+        .faq-section {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 9rem 1.5rem 10rem;
+            background: rgba(10, 10, 9, 0.84);
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .faq-section__inner {
+            width: min(100%, 66rem);
+            margin: 0 auto;
+        }
+
+        .faq-section__intro {
+            max-width: 32rem;
+            margin-bottom: 4.5rem;
+        }
+
+        .faq-section__eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            color: var(--m-green);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.58rem;
+            letter-spacing: 0.3em;
+            line-height: 1.5;
+            text-transform: uppercase;
+        }
+
+        .faq-section__eyebrow::before {
+            content: '';
+            width: 0.35rem;
+            height: 0.35rem;
+            border-radius: 9999px;
+            background: var(--m-green);
+            box-shadow: 0 0 10px rgba(220, 245, 203, 0.7);
+        }
+
+        .faq-section h2 {
+            margin: 0 0 1.25rem;
+            color: var(--m-cream, #f8f6f1);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: clamp(2.6rem, 6vw, 4.75rem);
+            font-weight: 300;
+            letter-spacing: -0.02em;
+            line-height: 0.98;
+        }
+
+        .faq-section__intro p {
+            max-width: 25rem;
+            margin: 0;
+            color: rgba(255, 255, 255, 0.4);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 300;
+            line-height: 1.8;
+        }
+
+        .faq-list {
+            border-top: 1px solid rgba(255, 255, 255, 0.11);
+        }
+
+        .faq-item {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+        }
+
+        .faq-item h3 {
+            margin: 0;
+        }
+
+        .faq-question {
+            width: 100%;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 1.25rem;
+            padding: 1.65rem 0;
+            color: rgba(255, 255, 255, 0.58);
+            font-family: 'Inter', sans-serif;
+            font-size: clamp(0.78rem, 1.4vw, 0.9rem);
+            font-weight: 400;
+            letter-spacing: 0.01em;
+            line-height: 1.5;
+            text-align: left;
+            transition: color 0.35s ease;
+        }
+
+        .faq-question:hover,
+        .faq-question:focus-visible,
+        .faq-item.is-open .faq-question {
+            color: rgba(255, 255, 255, 0.94);
+        }
+
+        .faq-question:focus-visible {
+            outline: 1px solid rgba(220, 245, 203, 0.6);
+            outline-offset: 0.35rem;
+        }
+
+        .faq-question__number {
+            color: rgba(255, 255, 255, 0.23);
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            transition: color 0.35s ease;
+        }
+
+        .faq-item.is-open .faq-question__number {
+            color: var(--m-green);
+        }
+
+        .faq-question__indicator {
+            position: relative;
+            width: 1.25rem;
+            height: 1.25rem;
+            color: rgba(255, 255, 255, 0.48);
+        }
+
+        .faq-question__indicator::before,
+        .faq-question__indicator::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0.9rem;
+            height: 1px;
+            border-radius: 9999px;
+            background: currentColor;
+            transform: translate(-50%, -50%);
+            transition: transform 0.35s ease, color 0.35s ease;
+        }
+
+        .faq-question__indicator::after {
+            transform: translate(-50%, -50%) rotate(90deg);
+        }
+
+        .faq-item.is-open .faq-question__indicator {
+            color: var(--m-green);
+        }
+
+        .faq-item.is-open .faq-question__indicator::after {
+            transform: translate(-50%, -50%) rotate(0deg);
+        }
+
+        .faq-answer {
+            display: grid;
+            grid-template-rows: 0fr;
+            padding-left: 3rem;
+            opacity: 0;
+            transition: grid-template-rows 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease, padding-bottom 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .faq-answer__inner {
+            min-height: 0;
+            overflow: hidden;
+            color: rgba(255, 255, 255, 0.42);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 300;
+            line-height: 1.85;
+        }
+
+        .faq-item.is-open .faq-answer {
+            grid-template-rows: 1fr;
+            padding-bottom: 1.7rem;
+            opacity: 1;
+        }
+
+        @media (min-width: 768px) {
+            .faq-section {
+                padding: 12rem 3rem 13rem;
+            }
+
+            .faq-section__intro {
+                margin-bottom: 6rem;
+            }
+
+            .faq-question {
+                padding: 1.9rem 0;
+            }
+
+            .faq-answer {
+                padding-left: 4.25rem;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 0px; } /* Hidden for cinematic feel */
+    </style>
+</head>
+<body>
+
+    <div id="grain"></div>
+    <div id="webgl-container"></div>
+    
+    <!-- Header -->
+    <header class="fixed top-0 left-0 w-full p-6 md:p-12 flex justify-between items-center z-[100]">
+        <div class="flex items-center gap-3 cursor-pointer group clickable" onclick="lenis.scrollTo(0)">
+            <div class="w-6 h-6 rounded-md border border-white/20 flex items-center justify-center bg-white/5 backdrop-blur-md group-hover:bg-white/10 transition-colors duration-500">
+                <div class="w-2 h-2 rounded-full bg-memakho-green shadow-[0_0_10px_#dcf5cb]"></div>
+            </div>
+            <span class="font-sans text-[11px] uppercase tracking-[0.3em] font-medium text-white/80 group-hover:text-white transition-colors duration-500">Memakho</span>
+        </div>
+        <nav class="hidden md:flex gap-12 font-sans text-[10px] uppercase tracking-[0.2em] text-white/40">
+            <a href="#product" data-nav-link class="hover:text-white transition-colors duration-300">Product</a>
+            <a href="#manifesto" data-nav-link class="hover:text-white transition-colors duration-300">Manifesto</a>
+            <a href="#journal" data-nav-link class="hover:text-white transition-colors duration-300">Journal</a>
+            <a href="#faq" data-nav-link class="hover:text-white transition-colors duration-300">FAQ</a>
+        </nav>
+        <button class="menu-toggle md:hidden clickable" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobile-nav">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <line class="line-1" x1="4" y1="6" x2="20" y2="6"></line>
+                <line class="line-2" x1="4" y1="12" x2="20" y2="12"></line>
+                <line class="line-3" x1="4" y1="18" x2="20" y2="18"></line>
+            </svg>
+        </button>
+    </header>
+
+    <nav class="site-mobile-nav" id="mobile-nav" aria-label="Mobile navigation">
+        <div class="site-mobile-nav__panel">
+            <div class="site-mobile-nav__top">
+                <div class="site-mobile-nav__brand" aria-label="Memakho home">
+                    <span class="site-mobile-nav__brand-mark" aria-hidden="true"></span>
+                    <span class="site-mobile-nav__brand-text">Memakho</span>
+                </div>
+                <button class="site-mobile-nav__close menu-toggle clickable" type="button" aria-label="Close navigation" aria-expanded="false" aria-controls="mobile-nav">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <line class="line-1" x1="4" y1="6" x2="20" y2="6"></line>
+                        <line class="line-2" x1="4" y1="12" x2="20" y2="12"></line>
+                        <line class="line-3" x1="4" y1="18" x2="20" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="site-mobile-nav__menu">
+                <a class="mobile-nav-item mobile-nav-item--main" href="#product" data-nav-link>Product</a>
+                <a class="mobile-nav-item mobile-nav-item--main" href="#manifesto" data-nav-link>Manifesto</a>
+                <a class="mobile-nav-item mobile-nav-item--main" href="#journal" data-nav-link>Journal</a>
+                <a class="mobile-nav-item mobile-nav-item--main" href="#faq" data-nav-link>FAQ</a>
+                <a class="mobile-nav-item mobile-nav-item--main" href="#dartlemura" data-nav-link>Dartlemura</a> 
+                <a class="mobile-nav-item mobile-nav-item--main" href="#contact" data-nav-link>Contact</a> 
+            </div>
+
+            <div class="site-mobile-nav__footer">
+                <div class="site-mobile-nav__secondary">
+                    <a href="#">Docs</a>
+                    <a href="#">Blog</a>
+                </div>
+                <div class="site-mobile-nav__legal">
+                    <a href ="privacy.html" target="blank">Privacy Policy</a>
+                    <a href="terms.html">Terms &amp; Conditions</a>
+                </div>
+                <div class="site-mobile-nav__meta">Memakho · Dartlemura</div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Invisible wrapper to create scroll length -->
+    <div id="scroll-proxy"></div>
+
+    <!-- The Narrative Layers -->
+    <div id="ui-layer">
+        
+        <!-- Scene 1: Hero -->
+        <div class="cinematic-text" id="scene-1">
+            <h1 class="font-serif text-5xl md:text-7xl lg:text-[6rem] leading-[1.05] tracking-tight text-memakho-cream mb-6">
+                <span class="word-wrap"><span class="word">Give</span></span>
+                <span class="word-wrap"><span class="word">me</span></span>
+                <span class="word-wrap"><span class="word">one</span></span>
+                <span class="word-wrap"><span class="word">second</span></span><br>
+                <span class="word-wrap"><span class="word italic text-white/50">from</span></span>
+                <span class="word-wrap"><span class="word italic text-white/50">our</span></span>
+                <span class="word-wrap"><span class="word italic text-white/50">day.</span></span>
+            </h1>
+            <div class="sub-text mt-8 flex flex-col items-center">
+                <p class="font-sans text-xs uppercase tracking-[0.3em] text-white/30 mb-8">Scroll</p>
+                <div class="w-[1px] h-12 bg-gradient-to-b from-white/30 to-transparent"></div>
+            </div>
+        </div>
+
+        <!-- Scene 2: Capture -->
+        <div class="cinematic-text" id="scene-2">
+            <h2 class="font-serif text-3xl md:text-5xl text-memakho-cream mb-4">
+                <span class="word-wrap"><span class="word">A</span></span>
+                <span class="word-wrap"><span class="word">single</span></span>
+                <span class="word-wrap"><span class="word">frame.</span></span>
+            </h2>
+            <p class="sub-text font-sans text-sm md:text-base text-memakho-gray max-w-sm text-center font-light leading-relaxed">
+                Caught in the amber of time.<br>Preserved exactly as it felt.
+            </p>
+        </div>
+
+        <!-- Scene 3: Accumulation / Week -->
+        <div class="cinematic-text" id="scene-3" style="align-items: flex-start; text-align: left; left: 10%; transform: translateY(-50%); width: 40%;">
+            <div class="sub-text mb-4 inline-flex items-center gap-3">
+                <div class="w-1.5 h-1.5 rounded-full bg-memakho-green shadow-[0_0_10px_#dcf5cb]"></div>
+                <span class="font-sans text-[9px] uppercase tracking-[0.3em] text-memakho-green">Your Week</span>
+            </div>
+            <h2 class="font-serif text-4xl md:text-6xl text-memakho-cream leading-tight mb-6">
+                <span class="word-wrap"><span class="word">I</span></span>
+                <span class="word-wrap"><span class="word">thought</span></span>
+                <span class="word-wrap"><span class="word">I</span></span>
+                <span class="word-wrap"><span class="word">did</span></span>
+                <span class="word-wrap"><span class="word">nothing...</span></span>
+            </h2>
+        </div>
+
+        <!-- Scene 3b: Realization -->
+        <div class="cinematic-text" id="scene-3b" style="align-items: flex-end; text-align: right; left: auto; right: 10%; transform: translateY(-50%); width: 40%;">
+            <h2 class="font-serif text-4xl md:text-6xl text-memakho-cream leading-tight mb-6 italic text-white/80">
+                <span class="word-wrap"><span class="word">Wait.</span></span><br>
+                <span class="word-wrap"><span class="word">I</span></span>
+                <span class="word-wrap"><span class="word">actually</span></span>
+                <span class="word-wrap"><span class="word">lived</span></span>
+                <span class="word-wrap"><span class="word">a</span></span>
+                <span class="word-wrap"><span class="word">lot.</span></span>
+            </h2>
+        </div>
+
+        <!-- Scene 4: Climax -->
+        <div class="cinematic-text" id="scene-4">
+            <div class="w-12 h-12 mb-8 rounded-xl border border-white/10 flex items-center justify-center bg-white/5 backdrop-blur-md sub-text">
+                <div class="w-3 h-3 rounded-full bg-memakho-green shadow-[0_0_15px_#dcf5cb]"></div>
+            </div>
+            <h2 class="font-serif text-3xl md:text-5xl lg:text-6xl text-memakho-cream mb-8 max-w-2xl leading-tight">
+                <span class="word-wrap"><span class="word">A</span></span>
+                <span class="word-wrap"><span class="word">private</span></span>
+                <span class="word-wrap"><span class="word">place</span></span>
+                <span class="word-wrap"><span class="word">for</span></span>
+                <span class="word-wrap"><span class="word">the</span></span>
+                <span class="word-wrap"><span class="word">moments</span></span><br>
+                <span class="word-wrap"><span class="word italic text-white/50">worth</span></span>
+                <span class="word-wrap"><span class="word italic text-white/50">remembering.</span></span>
+            </h2>
+            <div class="sub-text clickable mt-6">
+                <button class="btn-primary">Experience Memakho</button>
+            </div>
+            <footer class="absolute bottom-10 w-full text-center sub-text">
+                <p class="font-sans text-[9px] uppercase tracking-widest text-white/20">Available for iOS & Android — © 2026</p>
+            </footer>
+        </div>
+    </div>
+
+    <section class="faq-section" id="faq" aria-labelledby="faq-title">
+        <div class="faq-section__inner">
+            <div class="faq-section__intro">
+                <span class="faq-section__eyebrow">FAQ</span>
+                <h2 id="faq-title">Questions worth asking.</h2>
+                <p>A few things you may want to know before keeping your first second.</p>
+            </div>
+
+            <div class="faq-list">
+                <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-1" id="faq-question-1">
+                            <span class="faq-question__number">01</span>
+                            <span>What is Memakho?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-1" role="region" aria-labelledby="faq-question-1">
+                        <div class="faq-answer__inner">Memakho is a private space for keeping the small moments that usually disappear. Capture a little from your day, and let those moments quietly become a record of your life.</div>
+                    </div>
+                </article>
+                <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-2" id="faq-question-2">
+                            <span class="faq-question__number">02</span>
+                            <span>Where are my memories stored?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-2" role="region" aria-labelledby="faq-question-2">
+                        <div class="faq-answer__inner">Memakho is designed around private, local-first memory keeping. Your memories should remain under your control rather than becoming part of a public social feed.</div>
+                    </div>
+                </article>
+                <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-3" id="faq-question-3">
+                            <span class="faq-question__number">03</span>
+                            <span>Does Memakho sell or share my personal memories?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-3" role="region" aria-labelledby="faq-question-3">
+                        <div class="faq-answer__inner">Memakho is built around the idea that your memories are personal. The product is designed to avoid turning your moments into a social feed or something to perform for others.</div>
+                    </div>
+                </article>
+                <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-4" id="faq-question-4">
+                            <span class="faq-question__number">04</span>
+                            <span>Do I need an account?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-4" role="region" aria-labelledby="faq-question-4">
+                        <div class="faq-answer__inner">Memakho is designed to feel simple and personal, without unnecessary friction.</div>
+                    </div>
+                </article>
+                <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-5" id="faq-question-5">
+                            <span class="faq-question__number">05</span>
+                            <span>Can I delete my memories?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-5" role="region" aria-labelledby="faq-question-5">
+                        <div class="faq-answer__inner">Your memories should remain yours to manage. The experience is designed around keeping, revisiting, and removing moments on your terms.</div>
+                    </div>
+                </article>
+                <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-6" id="faq-question-6">
+                            <span class="faq-question__number">06</span>
+                            <span>Is Memakho available on iOS and Android?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-6" role="region" aria-labelledby="faq-question-6">
+                        <div class="faq-answer__inner">Memakho is being created for mobile, with the experience designed around making it easy to keep a little moment wherever you are.</div>
+                    </div>
+                </article>
+                    <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-7" id="faq-question-7">
+                            <span class="faq-question__number">07</span>
+                            <span>Why should i install memakho?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-7" role="region" aria-labelledby="faq-question-7">
+                        <div class="faq-answer__inner">Memakho gives you access to a unique way of capturing moments and preserving them for years to come.</div>
+                    </div>
+                </article>
+                    </article>
+                    <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-8" id="faq-question-8">
+                            <span class="faq-question__number">08</span>
+                            <span>Is Memakho Completely free?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-8" role="region" aria-labelledby="faq-question-8">
+                        <div class="faq-answer__inner">Yes, Memakho is completely free.</div>
+                    </div>
+                </article>
+                    </article>
+                    <article class="faq-item">
+                    <h3>
+                        <button class="faq-question" type="button" aria-expanded="false" aria-controls="faq-answer-9" id="faq-question-9">
+                            <span class="faq-question__number">09</span>
+                            <span>Does Memakho contains Ads?</span>
+                            <span class="faq-question__indicator" aria-hidden="true"></span>
+                        </button>
+                    </h3>
+                    <div class="faq-answer" id="faq-answer-9" role="region" aria-labelledby="faq-question-9">
+                        <div class="faq-answer__inner">No, Memakho is 100% ad-free.</div>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+        <footer class="site-footer" aria-label="Memakho footer">
+        <div class="site-footer__inner">
+            <div class="site-footer__top">
+                <nav class="site-footer__group" aria-label="Social links">
+                    <a href="https://www.x.com/memakho" target="_blank" aria-label="Memakho on X">X</a>
+                    <a href="https://www.youtube.com/@memakho" target="_blank" aria-label="Memakho on YouTube">YouTube</a>
+                    <a href="https://www.instagram.com/memakho" target="_blank" aria-label="Memakho on Instagram">Instagram</a>
+                </nav>
+                <nav class="site-footer__group" aria-label="Resources">
+                    <a href="#">Docs</a>
+                    <a href="#">Blog</a>
+                </nav>
+                
+            </div>
+            <div class="site-footer__bottom">
+                <span class="site-footer__legal">© 2026 Memakho. All Rights Reserved</span>
+                                <nav class="site-footer__group" aria-label="Resources">
+                    <a href="#">Memakho</a>~<p href="#">A product by Dartlemura</p>
+                </nav>
+                <nav class="site-footer__group" aria-label="Legal links">
+                    <a href="privacy.html" target="_blank">Privacy Policy</a>
+                    <a href="terms.html">Terms &amp; Conditions</a>
+                </nav>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- 1. SETUP LENIS SMOOTH SCROLLING ---
+        const lenis = new Lenis({
+            duration: 1.5,
+            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+            direction: 'vertical',
+            gestureDirection: 'vertical',
+            smooth: true,
+            mouseMultiplier: 0.8,
+            smoothTouch: false,
+            touchMultiplier: 2,
+        });
+
+        const mobileNav = document.getElementById('mobile-nav');
+        mobileNav.setAttribute('aria-hidden', 'true');
+        const mobileToggleButtons = document.querySelectorAll('.menu-toggle');
+        const mobileNavLinks = document.querySelectorAll('[data-nav-link]');
+        const mobileNavTargets = {
+            product: 0.18,
+            manifesto: 0.5,
+            journal: 0.82
+        };
+
+        function setMobileNavState(isOpen) {
+            mobileNav.classList.toggle('is-open', isOpen);
+            document.body.classList.toggle('menu-open', isOpen);
+            mobileNav.setAttribute('aria-hidden', String(!isOpen));
+            mobileToggleButtons.forEach((button) => {
+                button.setAttribute('aria-expanded', String(isOpen));
+            });
+        }
+
+        mobileToggleButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const shouldOpen = !mobileNav.classList.contains('is-open');
+                setMobileNavState(shouldOpen);
+            });
+        });
+
+        mobileNavLinks.forEach((link) => {
+            link.addEventListener('click', (event) => {
+                event.preventDefault();
+                const key = link.textContent.trim().toLowerCase();
+                const scrollContainer = document.getElementById('scroll-proxy');
+                const targetElement = link.getAttribute('href') === '#faq' ? document.getElementById('faq') : null;
+                const targetRatio = mobileNavTargets[key] ?? 0.18;
+                const targetScroll = targetElement
+                    ? Math.max(0, targetElement.offsetTop - 24)
+                    : (scrollContainer.offsetHeight || window.innerHeight * 6) * targetRatio;
+                setMobileNavState(false);
+                lenis.scrollTo(targetScroll, {
+                    duration: 1.2,
+                    easing: (t) => 1 - Math.pow(1 - t, 3),
+                });
+                window.scrollTo(0, targetScroll);
+            });
+        });
+
+        const faqItems = document.querySelectorAll('.faq-item');
+        faqItems.forEach((item) => {
+            const question = item.querySelector('.faq-question');
+            const answer = item.querySelector('.faq-answer');
+
+            question.addEventListener('click', () => {
+                const shouldOpen = question.getAttribute('aria-expanded') !== 'true';
+
+                faqItems.forEach((otherItem) => {
+                    const otherQuestion = otherItem.querySelector('.faq-question');
+                    const otherAnswer = otherItem.querySelector('.faq-answer');
+                    otherItem.classList.remove('is-open');
+                    otherQuestion.setAttribute('aria-expanded', 'false');
+                    otherAnswer.setAttribute('aria-hidden', 'true');
+                });
+
+                if (shouldOpen) {
+                    item.classList.add('is-open');
+                    question.setAttribute('aria-expanded', 'true');
+                    answer.setAttribute('aria-hidden', 'false');
+                }
+            });
+
+            answer.setAttribute('aria-hidden', 'true');
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && mobileNav.classList.contains('is-open')) {
+                setMobileNavState(false);
+            }
+        });
+
+        // --- 2. THREE.JS SCENE ARCHITECTURE ---
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        // Atmospheric depth
+        scene.fog = new THREE.FogExp2(0x0a0a09, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 0, 10);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setClearColor(0x0a0a09, 1);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.0;
+        container.appendChild(renderer.domElement);
+
+        // --- Post-Processing (Cinematic Bloom) ---
+        const renderScene = new THREE.RenderPass(scene, camera);
+        const bloomPass = new THREE.UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+        bloomPass.threshold = 0.2;
+        bloomPass.strength = 0.6; // Base strength
+        bloomPass.radius = 0.8;
+        
+        const composer = new THREE.EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1);
+        scene.add(ambientLight);
+
+        // Inner glowing light for the core
+        const coreLight = new THREE.PointLight(0xdcf5cb, 2, 20);
+        scene.add(coreLight);
+
+        // Subtle rim light
+        const rimLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        rimLight.position.set(5, 5, -5);
+        scene.add(rimLight);
+
+        // --- 3. CREATING THE ASSETS ---
+
+        // The Signature Memakho "Core"
+        const coreGroup = new THREE.Group();
+        scene.add(coreGroup);
+
+        // Outer Translucent Shell
+        const shellGeo = new THREE.IcosahedronGeometry(1.5, 16); // High detail for organic vertex manipulation
+        
+        // Custom Shader Material mimicking glass/liquid
+        const shellMat = new THREE.MeshPhysicalMaterial({
+            color: 0x0a0a09,
+            metalness: 0.1,
+            roughness: 0.1,
+            transmission: 0.95, // Glass-like
+            ior: 1.4,
+            transparent: true,
+            opacity: 1,
+            side: THREE.DoubleSide
+        });
+        const shellMesh = new THREE.Mesh(shellGeo, shellMat);
+        coreGroup.add(shellMesh);
+
+        // Inner Glowing Anomaly
+        const innerGeo = new THREE.IcosahedronGeometry(0.5, 4);
+        const innerMat = new THREE.MeshBasicMaterial({ color: 0xdcf5cb, wireframe: true, transparent: true, opacity: 0.3 });
+        const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+        coreGroup.add(innerMesh);
+
+        // Save original vertices for organic distortion
+        const originalPositions = shellGeo.attributes.position.clone();
+
+        // --- Generate UI Cards (Canvas Textures) ---
+        function createProductCardTexture(title, time, hasImage = false, isDark = true) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 512;
+            canvas.height = 640;
+            const ctx = canvas.getContext('2d');
+
+            // Card Base
+            ctx.fillStyle = isDark ? 'rgba(20, 20, 19, 0.9)' : 'rgba(240, 240, 240, 0.9)';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, 512, 640, 32);
+            ctx.fill();
+
+            // Border
+            ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.1)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Image Placeholder (Gradient/Noise)
+            if (hasImage) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, isDark ? '#1a1a1a' : '#e0e0e0');
+                gradient.addColorStop(1, isDark ? '#0a0a09' : '#cccccc');
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(32, 32, 448, 400, 16);
+                ctx.fill();
+                
+                // Abstract shape inside image
+                ctx.fillStyle = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.05)';
+                ctx.beginPath();
+                ctx.arc(256, 232, 100, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Typography
+            const textY = hasImage ? 490 : 80;
+            ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.9)' : 'rgba(10, 10, 9, 0.9)';
+            ctx.font = '300 36px "Inter", sans-serif';
+            ctx.fillText(title, 40, textY);
+
+            ctx.fillStyle = isDark ? 'rgba(255, 255, 255, 0.4)' : 'rgba(10, 10, 9, 0.5)';
+            ctx.font = '400 24px "Inter", sans-serif';
+            ctx.fillText(time, 40, textY + 40);
+
+            // App element: Avatar/Icon
+            ctx.fillStyle = isDark ? '#dcf5cb' : '#0a0a09';
+            ctx.beginPath();
+            ctx.arc(60, canvas.height - 60, 20, 0, Math.PI * 2);
+            ctx.fill();
+
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.minFilter = THREE.LinearFilter;
+            return texture;
+        }
+
+        // Create the card meshes
+        const cardsData = [
+            { t: "Morning light", d: "08:14 AM", img: true },
+            { t: "Quiet coffee", d: "09:30 AM", img: false },
+            { t: "The rain started", d: "02:15 PM", img: true },
+            { t: "Walking back", d: "06:45 PM", img: true },
+            { t: "Just reading", d: "10:00 PM", img: false },
+            { t: "A random thought", d: "Tuesday", img: false },
+            { t: "City sounds", d: "Wednesday", img: true },
+            { t: "Late dinner", d: "Thursday", img: true },
+            { t: "Looking up", d: "Friday", img: false },
+            { t: "Still here", d: "Saturday", img: true },
+        ];
+
+        const cards = [];
+        const cardGeo = new THREE.PlaneGeometry(1.6, 2);
+        
+        cardsData.forEach((data, i) => {
+            const texture = createProductCardTexture(data.t, data.d, data.img, true);
+            const mat = new THREE.MeshPhysicalMaterial({
+                map: texture,
+                transparent: true,
+                opacity: 0, // Hidden initially
+                roughness: 0.4,
+                metalness: 0.1,
+                side: THREE.DoubleSide
+            });
+            const mesh = new THREE.Mesh(cardGeo, mat);
+            
+            // Store target positions for the "Week Grid" layout
+            const col = i % 5;
+            const row = Math.floor(i / 5);
+            
+            mesh.userData = {
+                // Origin (inside core)
+                origin: new THREE.Vector3(0, 0, 0),
+                // Exploded phase (chaotic)
+                exploded: new THREE.Vector3((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 10 - 5),
+                // Grid phase (structured week view)
+                grid: new THREE.Vector3((col - 2) * 2.2, (row * -2.4) + 1, -15 - (Math.random()*2)),
+                // Rotations
+                rotExploded: new THREE.Vector3(Math.random(), Math.random(), Math.random()),
+                rotGrid: new THREE.Vector3(0, 0, 0),
+                // Random organic drift offset
+                drift: Math.random() * Math.PI * 2
+            };
+            
+            // Start at origin
+            mesh.position.copy(mesh.userData.origin);
+            scene.add(mesh);
+            cards.push(mesh);
+        });
+
+        // --- The Constellation (Climax Particles) ---
+        const particleCount = 2000;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(particleCount * 3);
+        const pSizes = new Float32Array(particleCount);
+        
+        for(let i=0; i<particleCount; i++) {
+            // Spherical distribution
+            const r = 20 + Math.random() * 40;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos((Math.random() * 2) - 1);
+            
+            pPos[i*3] = r * Math.sin(phi) * Math.cos(theta);
+            pPos[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+            pPos[i*3+2] = r * Math.cos(phi);
+            
+            pSizes[i] = Math.random() * 2;
+        }
+        
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        pGeo.setAttribute('size', new THREE.BufferAttribute(pSizes, 1));
+        
+        // Custom shader for particles to control size and fade
+        const pMat = new THREE.ShaderMaterial({
+            uniforms: {
+                color: { value: new THREE.Color(0xdcf5cb) },
+                opacity: { value: 0.0 }
+            },
+            vertexShader: `
+                attribute float size;
+                varying float vOpacity;
+                void main() {
+                    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                    gl_PointSize = size * (300.0 / -mvPosition.z);
+                    gl_Position = projectionMatrix * mvPosition;
+                }
+            `,
+            fragmentShader: `
+                uniform vec3 color;
+                uniform float opacity;
+                void main() {
+                    // Soft circle
+                    float d = distance(gl_PointCoord, vec2(0.5));
+                    if(d > 0.5) discard;
+                    gl_FragColor = vec4(color, opacity * (1.0 - (d*2.0)));
+                }
+            `,
+            transparent: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        
+        const constellation = new THREE.Points(pGeo, pMat);
+        scene.add(constellation);
+
+        // --- 4. CENTRAL STATE & CHOREOGRAPHY (GSAP) ---
+        gsap.registerPlugin(ScrollTrigger);
+
+        gsap.from('.faq-section__intro, .faq-item', {
+            y: 28,
+            opacity: 0,
+            duration: 1.1,
+            stagger: 0.08,
+            ease: 'power3.out',
+            scrollTrigger: {
+                trigger: '.faq-section',
+                start: 'top 78%',
+                once: true
+            }
+        });
+
+        // This object acts as the bridge between GSAP scroll progress and the WebGL render loop
+        const sceneState = {
+            progress: 0,
+            coreScale: 1.0,
+            coreDistortion: 0.15,
+            bloomStrength: 0.6,
+            lightInt: 2,
+            camZ: 10,
+            camY: 0,
+            camX: 0,
+            cardLayout: 0, // 0 = origin, 1 = exploded, 2 = grid
+            cardOpacity: 0,
+            constellationOp: 0,
+            coreOpacity: 1
+        };
+
+        // Text reveal helper
+        function setupTextAnim(sceneId) {
+            const section = document.getElementById(sceneId);
+            const words = section.querySelectorAll('.word');
+            const subs = section.querySelectorAll('.sub-text');
+            
+            const tl = gsap.timeline({ paused: true });
+            
+            tl.set(section, { visibility: 'visible', opacity: 1 });
+            
+            if(words.length) {
+                tl.to(words, {
+                    y: "0%",
+                    opacity: 1,
+                    filter: "blur(0px)",
+                    duration: 1.2,
+                    stagger: 0.08,
+                    ease: "power3.out"
+                }, 0);
+            }
+            if(subs.length) {
+                tl.to(subs, {
+                    y: 0,
+                    opacity: 1,
+                    filter: "blur(0px)",
+                    duration: 1.5,
+                    stagger: 0.2,
+                    ease: "power2.out"
+                }, 0.5);
+            }
+
+            tl.eventCallback('onStart', () => {
+                gsap.set(section, { visibility: 'visible' });
+            });
+            tl.eventCallback('onReverseComplete', () => {
+                gsap.set(section, { visibility: 'hidden', opacity: 0 });
+            });
+            gsap.set(section, { visibility: 'hidden', opacity: 0 });
+
+            let hasPlayed = false;
+            
+            return {
+                play: () => {
+                    hasPlayed = true;
+                    tl.play();
+                },
+                reverse: () => {
+                    if (!hasPlayed || tl.progress() === 0) {
+                        gsap.set(section, { visibility: 'hidden', opacity: 0 });
+                    } else {
+                        tl.reverse();
+                    }
+                },
+                hideInstantly: () => {
+                    tl.pause(0);
+                    gsap.set(section, { visibility: 'hidden', opacity: 0 });
+                }
+            };
+        }
+
+        const anims = {
+            s1: setupTextAnim('scene-1'),
+            s2: setupTextAnim('scene-2'),
+            s3: setupTextAnim('scene-3'),
+            s3b: setupTextAnim('scene-3b'),
+            s4: setupTextAnim('scene-4')
+        };
+
+        let activeScene = null;
+        function activateScene(sceneKey) {
+            if (activeScene === sceneKey) return;
+            Object.keys(anims).forEach((key) => {
+                if (key !== sceneKey) anims[key].hideInstantly();
+            });
+            activeScene = sceneKey;
+            anims[sceneKey].play();
+        }
+
+        // Initialize first scene
+        anims.s1.play();
+
+        // The cinematic layer is fixed by design. Release it when the proxy ends
+        // so normal-flow content can follow the final scene without overlap.
+        const cinematicLayer = document.getElementById('ui-layer');
+        ScrollTrigger.create({
+            trigger: '#scroll-proxy',
+            start: 'top top',
+            end: 'bottom bottom',
+            onLeave: () => gsap.to(cinematicLayer, {
+                autoAlpha: 0,
+                duration: 0.7,
+                ease: 'power2.out',
+                overwrite: true
+            }),
+            onEnterBack: () => gsap.to(cinematicLayer, {
+                autoAlpha: 1,
+                duration: 0.7,
+                ease: 'power2.out',
+                overwrite: true
+            })
+        });
+
+        // Main Scroll Timeline
+        const masterTl = gsap.timeline({
+            scrollTrigger: {
+                trigger: "#scroll-proxy",
+                start: "top top",
+                end: "bottom bottom",
+                scrub: 1.5, // Smooth scrubbing
+                onUpdate: (self) => {
+                    sceneState.progress = self.progress;
+                    
+                    // Logic to trigger UI text at specific progress points
+                    const p = self.progress;
+                    
+                    // Scene 1 logic
+                    if(p > 0.06) anims.s1.reverse();
+                    else activateScene('s1');
+
+                    // Scene 2 (Capture) logic
+                    if(p >= 0.16 && p < 0.32) activateScene('s2');
+                    else anims.s2.reverse();
+
+                    // Scene 3 (Week) logic
+                    if(p >= 0.40 && p < 0.52) activateScene('s3');
+                    else anims.s3.reverse();
+
+                    // Scene 3b (Wait...) logic
+                    if(p >= 0.64 && p < 0.78) activateScene('s3b');
+                    else anims.s3b.reverse();
+
+                    // Scene 4 (Climax) logic
+                    if(p >= 0.90) activateScene('s4');
+                    else anims.s4.reverse();
+                }
+            }
+        });
+
+        // Choreography Sequence
+        masterTl
+            // Phase 1: The Capture (0 -> 15%)
+            .to(sceneState, { coreScale: 0.1, coreDistortion: 0, camZ: 8, duration: 1 }, 0)
+            .to(sceneState, { bloomStrength: 4.0, lightInt: 10, duration: 0.2, ease: "power2.in" }, 0.8) // Flash!
+            
+            // Phase 2: The Explosion / Time Dilation (15% -> 30%)
+            .to(sceneState, { bloomStrength: 0.4, lightInt: 0.5, duration: 0.5, ease: "power2.out" }, 1.0)
+            .to(sceneState, { cardLayout: 1, cardOpacity: 1, coreOpacity: 0, duration: 1.5, ease: "power2.out" }, 1.0)
+            .to(sceneState, { camZ: 2, duration: 1.5 }, 1.0)
+
+            // Phase 3: The Assembly / Week View (30% -> 60%)
+            .to(sceneState, { cardLayout: 2, camZ: -5, camX: 1, duration: 2, ease: "power1.inOut" }, 3.0)
+            .to(sceneState, { camY: -3.5, duration: 2, ease: "none" }, 5.0) // Pan down the grid
+
+            // Phase 4: The Accumulation / Pull Back (60% -> 85%)
+            .to(sceneState, { camZ: 40, camY: 0, camX: 0, duration: 3, ease: "power2.inOut" }, 7.0)
+            .to(sceneState, { cardOpacity: 0.1, constellationOp: 1.0, duration: 2 }, 7.5)
+
+            // Phase 5: Climax Resting State (85% -> 100%)
+            .to(sceneState, { coreOpacity: 1, coreScale: 0.5, bloomStrength: 1.2, duration: 2 }, 9.0)
+            .to(sceneState, { camZ: 35, duration: 1 }, 9.0);
+
+
+        // --- 5. RENDER LOOP & ORGANIC MOTION ---
+        const clock = new THREE.Clock();
+        
+        // Mouse interaction for parallax
+        let targetCamX = 0;
+        let targetCamY = 0;
+        let mouseX = 0;
+        let mouseY = 0;
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        });
+
+        const shellBaseVec = new THREE.Vector3();
+        const shellDispVec = new THREE.Vector3();
+        const cardTargetPos = new THREE.Vector3();
+        const cardTargetRot = new THREE.Vector3();
+
+        function animate(time) {
+            lenis.raf(time); // Sync smooth scroll
+
+            const elapsed = clock.getElapsedTime();
+
+            // 1. Organic Core Breathing (Vertex Displacement)
+            if (sceneState.coreOpacity > 0.01) {
+                const positions = shellGeo.attributes.position;
+                for (let i = 0; i < positions.count; i++) {
+                    shellBaseVec.set(
+                        originalPositions.getX(i),
+                        originalPositions.getY(i),
+                        originalPositions.getZ(i)
+                    );
+
+                    const noise = Math.sin(shellBaseVec.x * 3 + elapsed) *
+                        Math.cos(shellBaseVec.y * 3 + elapsed * 0.8) *
+                        Math.sin(shellBaseVec.z * 3 + elapsed * 1.2);
+
+                    shellDispVec.copy(shellBaseVec).normalize().multiplyScalar(noise * sceneState.coreDistortion);
+                    positions.setXYZ(
+                        i,
+                        shellBaseVec.x + shellDispVec.x,
+                        shellBaseVec.y + shellDispVec.y,
+                        shellBaseVec.z + shellDispVec.z
+                    );
+                }
+                positions.needsUpdate = true;
+                shellGeo.computeVertexNormals();
+
+                coreGroup.rotation.y = elapsed * 0.2;
+                coreGroup.rotation.x = Math.sin(elapsed * 0.1) * 0.2;
+
+                coreGroup.scale.setScalar(sceneState.coreScale);
+                shellMat.opacity = sceneState.coreOpacity;
+                innerMat.opacity = sceneState.coreOpacity * 0.3;
+                coreLight.intensity = sceneState.lightInt * sceneState.coreOpacity;
+            } else {
+                coreLight.intensity = 0;
+            }
+
+            // 2. Card Layout Interpolation
+            cards.forEach((card) => {
+                const u = card.userData;
+
+                if (sceneState.cardLayout <= 1) {
+                    const t = sceneState.cardLayout;
+                    cardTargetPos.lerpVectors(u.origin, u.exploded, t);
+                    cardTargetRot.set(u.rotExploded.x * t, u.rotExploded.y * t, u.rotExploded.z * t);
+                } else {
+                    const t = sceneState.cardLayout - 1;
+                    cardTargetPos.lerpVectors(u.exploded, u.grid, t);
+                    cardTargetRot.set(
+                        THREE.MathUtils.lerp(u.rotExploded.x, u.rotGrid.x, t),
+                        THREE.MathUtils.lerp(u.rotExploded.y, u.rotGrid.y, t),
+                        THREE.MathUtils.lerp(u.rotExploded.z, u.rotGrid.z, t)
+                    );
+                }
+
+                const driftY = Math.sin(elapsed + u.drift) * 0.1;
+                cardTargetPos.y += driftY;
+
+                card.position.lerp(cardTargetPos, 0.1);
+                card.rotation.x = THREE.MathUtils.lerp(card.rotation.x, cardTargetRot.x, 0.1);
+                card.rotation.y = THREE.MathUtils.lerp(card.rotation.y, cardTargetRot.y, 0.1);
+                card.rotation.z = THREE.MathUtils.lerp(card.rotation.z, cardTargetRot.z, 0.1);
+
+                card.material.opacity = THREE.MathUtils.lerp(card.material.opacity, sceneState.cardOpacity, 0.1);
+            });
+
+            // 3. Constellation Rotation & Opacity
+            if (sceneState.constellationOp > 0.01) {
+                constellation.rotation.y = elapsed * 0.02;
+                constellation.rotation.x = Math.sin(elapsed * 0.05) * 0.1;
+            }
+            pMat.uniforms.opacity.value = sceneState.constellationOp;
+
+            // 4. Camera Parallax & Positioning
+            targetCamX = sceneState.camX + (mouseX * 0.5);
+            targetCamY = sceneState.camY + (mouseY * 0.5);
+            
+            camera.position.x += (targetCamX - camera.position.x) * 0.05;
+            camera.position.y += (targetCamY - camera.position.y) * 0.05;
+            camera.position.z += (sceneState.camZ - camera.position.z) * 0.05;
+            
+            // Subtle look at center
+            camera.lookAt(0, sceneState.camY * 0.5, 0);
+
+            // 5. Post-Processing updates
+            bloomPass.strength = sceneState.bloomStrength;
+
+            // Render via composer
+            composer.render();
+
+            requestAnimationFrame(animate);
+        }
+
+        requestAnimationFrame(animate);
+
+        // --- 6. RESIZE HANDLER ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+
+            if (window.innerWidth >= 768 && mobileNav.classList.contains('is-open')) {
+                setMobileNavState(false);
+            }
+            
+            // On mobile, adjust camera base Z to avoid UI clipping
+            if(window.innerWidth < 768 && sceneState.progress < 0.1) {
+                gsap.set(sceneState, { camZ: 14 });
+            }
+        });
+        
+        // Trigger initial resize logic
+        window.dispatchEvent(new Event('resize'));
+
+    </script>
+</body>
+</html>
